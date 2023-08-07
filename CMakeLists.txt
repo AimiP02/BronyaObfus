@@ -6,8 +6,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /utf-8 /MD /std:c++latest")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /utf-8 /MDd /std:c++latest")
 
-set(LLVM_BUILD_DIR "D:/Data/Code/windows/obfuscator/BronyaObfus/build")
-set(LLVM_SRC_DIR "D:/Data/Code/windows/obfuscator/BronyaObfus/llvm")
+set(LLVM_BUILD_DIR "E:/Code/windows/BronyaObfus/build")
+set(LLVM_SRC_DIR "E:/Code/windows/BronyaObfus/llvm")
 
 aux_source_directory(./src src)
 set(srcs ${src})
