@@ -116,7 +116,8 @@ bool IndirectCallPass::runIndirectCall(Function &F) {
     ArgAttrVec.clear();
 
     Value *Idx = ConstantInt::get(Int64Ty, CalleeNumbering[Callee]);
-    Value *GEP = Builder.CreateGEP(Targets->getType(), Targets, {Zero, Idx});
+    Value *GEP =
+        Builder.CreateGEP(Targets->getValueType(), Targets, {Zero, Idx});
     LoadInst *EncDestAddr =
         Builder.CreateLoad(GEP->getType(), GEP, CS->getName());
 
