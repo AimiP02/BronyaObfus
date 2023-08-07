@@ -3,6 +3,7 @@
 #include "Obfuscation/Flattening.h"
 #include "Obfuscation/MBAObfuscation.h"
 #include "Obfuscation/StringObfuscation.h"
+#include "Obfuscation/IndirectCall.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/OptimizationLevel.h"
@@ -27,6 +28,12 @@ llvm::PassPluginLibraryInfo getBronyaObfusPluginInfo() {
                     FPM.addPass(MBAObfuscationPass());
                     return true;
                   }
+
+                  if (PassName == "indirect-call") {
+                    FPM.addPass(IndirectCallPass());
+                    return true;
+                  }
+
                   return false;
                 });
 
@@ -42,13 +49,14 @@ llvm::PassPluginLibraryInfo getBronyaObfusPluginInfo() {
             PB.registerPipelineStartEPCallback([](ModulePassManager &MPM,
                                                   OptimizationLevel Level) {
               FunctionPassManager FPM;
-              FPM.addPass(BogusControlFlowPass());
-              FPM.addPass(FlatteningPass());
-              FPM.addPass(MBAObfuscationPass());
+              //FPM.addPass(BogusControlFlowPass());
+              //FPM.addPass(FlatteningPass());
+              //FPM.addPass(MBAObfuscationPass());
+              FPM.addPass(IndirectCallPass());
 
               MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
 
-              MPM.addPass(StringObfuscationPass());
+              //MPM.addPass(StringObfuscationPass());
             });
           }};
 }
