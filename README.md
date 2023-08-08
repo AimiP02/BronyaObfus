@@ -16,11 +16,14 @@ cmake ..
 
 ## 使用
 
-- `-mllvm --bogus-control-flow`: 虚假控制流
-- `-mllvm --flattening`: 控制流平坦化
-- `-mllvm --mba-substitute`: 多项式 MBA 指令替换
-- `-mllvm --string-obfus`: 字符串加密
+- `bogus-control-flow`: 虚假控制流
+- `flattening`: 控制流平坦化
+- `mba-substitute`: 多项式 MBA 指令替换
+- `string-obfus`: 字符串加密
+- `indirect-call`: 间接调用混淆
 
 ```bash
-clang++ -Xclang -fpass-plugin="<your/dll/path>" -mllvm ... 
+opt --load-pass-plugin="<your/dll/path>" --passes='...;...;...' 
 ```
+
+目前 NewPassManager 似乎不能通过`-Xclang -fpass-plugin=... -mllvm ...`来传参整合到工具链中，如果需要指定 Pass 只能通过 `opt` 或者拆分成更小的 Dll 使用
