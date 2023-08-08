@@ -90,7 +90,7 @@ bool IndirectCallPass::runIndirectCall(Function &F) {
 
   uint64_t Key = cryptoutils->get_uint64_t();
 
-  IntegerType *Int64Ty = Type::getInt32Ty(Ctx);
+  IntegerType *Int64Ty = Type::getInt64Ty(Ctx);
 
   auto *PosEncKey = ConstantInt::get(Int64Ty, Key, false);
   auto *NegEncKey = ConstantInt::get(Int64Ty, -Key, false);
