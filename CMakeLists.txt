@@ -6,8 +6,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /utf-8 /MD /std:c++latest")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /utf-8 /MDd /std:c++latest")
 
-set(LLVM_BUILD_DIR "E:/Code/windows/BronyaObfus/build")
-set(LLVM_SRC_DIR "E:/Code/windows/BronyaObfus/llvm")
+set(LLVM_BUILD_DIR "E:/Code/windows/Arkari/build")
+set(LLVM_SRC_DIR "E:/Code/windows/Arkari/llvm")
 
 aux_source_directory(./src src)
 set(srcs ${src})
@@ -21,9 +21,9 @@ include_directories("${LLVM_BUILD_DIR}/include")
 include_directories("${LLVM_SRC_DIR}/include")
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
-set(mylibdir "${LLVM_BUILD_DIR}/lib")
+set(mylibdir "${LLVM_BUILD_DIR}/Release/lib")
 
-file(GLOB LIBS "${LLVM_BUILD_DIR}/lib/LLVM*.lib")
+file(GLOB LIBS "${mylibdir}/LLVM*.lib")
 
 set_target_properties(BronyaObfus PROPERTIES LINKER_LANGUAGE CXX)
 

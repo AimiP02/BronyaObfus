@@ -2,7 +2,7 @@
 #define LLVM_MBA_OBFUSCATION_H
 
 #include "llvm/IR/PassManager.h"
-#include "llvm/Transforms/Obfuscation/PassRegistry.h"
+#include <Obfuscation/PassRegistry.h>
 
 namespace llvm {
 

@@ -2,7 +2,7 @@
 #define LLVM_STRING_OBFUSCATION_H
 
 #include "llvm/IR/LLVMContext.h"
-#include <llvm/Transforms/Obfuscation/PassRegistry.h>
+#include <Obfuscation/PassRegistry.h>
 
 namespace llvm {
 

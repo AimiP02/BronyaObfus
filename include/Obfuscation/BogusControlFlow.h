@@ -3,7 +3,7 @@
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
-#include <llvm/Transforms/Obfuscation/PassRegistry.h>
+#include <Obfuscation/PassRegistry.h>
 
 namespace llvm {
 

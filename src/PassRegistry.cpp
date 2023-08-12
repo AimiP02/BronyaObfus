@@ -14,7 +14,7 @@ llvm::PassPluginLibraryInfo getBronyaObfusPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "BronyaObfus", "v0.1", [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef PassName, FunctionPassManager &FPM, ...) {
-                  if (PassName == "bogus-control-flow") {
+                  /*if (PassName == "bogus-control-flow") {
                     FPM.addPass(BogusControlFlowPass());
                     return true;
                   }
@@ -22,7 +22,7 @@ llvm::PassPluginLibraryInfo getBronyaObfusPluginInfo() {
                   if (PassName == "flattening") {
                     FPM.addPass(FlatteningPass());
                     return true;
-                  }
+                  }*/
 
                   if (PassName == "mba-substitute") {
                     FPM.addPass(MBAObfuscationPass());
@@ -37,27 +37,28 @@ llvm::PassPluginLibraryInfo getBronyaObfusPluginInfo() {
                   return false;
                 });
 
-            PB.registerPipelineParsingCallback(
-                [](StringRef PassName, ModulePassManager &MPM, ...) {
-                  if (PassName == "string-obfus") {
-                    MPM.addPass(StringObfuscationPass());
-                    return true;
-                  }
-                  return false;
+            //PB.registerPipelineParsingCallback(
+            //    [](StringRef PassName, ModulePassManager &MPM, ...) {
+            //      if (PassName == "string-obfus") {
+            //        MPM.addPass(StringObfuscationPass());
+            //        return true;
+            //      }
+            //      return false;
+            //    });
+
+            //PB.registerPipelineStartEPCallback([](ModulePassManager &MPM,
+            //                                      OptimizationLevel Level) {
+            //  FunctionPassManager FPM;
+            //  FPM.addPass(IndirectCallPass());
+            //  MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
+
+            //  //MPM.addPass(StringObfuscationPass());
+            //});
+
+            PB.registerVectorizerStartEPCallback([](FunctionPassManager& FPM, OptimizationLevel Level) {
+                FPM.addPass(IndirectCallPass());
+                FPM.addPass(MBAObfuscationPass());
                 });
-
-            PB.registerPipelineStartEPCallback([](ModulePassManager &MPM,
-                                                  OptimizationLevel Level) {
-              FunctionPassManager FPM;
-              //FPM.addPass(BogusControlFlowPass());
-              //FPM.addPass(FlatteningPass());
-              //FPM.addPass(MBAObfuscationPass());
-              FPM.addPass(IndirectCallPass());
-
-              MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
-
-              //MPM.addPass(StringObfuscationPass());
-            });
           }};
 }
 
