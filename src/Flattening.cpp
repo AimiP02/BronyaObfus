@@ -12,6 +12,7 @@
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Support/raw_ostream.h"
 #include <map>
 #include <stdint.h>
 
@@ -51,9 +52,12 @@ void fixStack(Function &F) {
 bool runFlattening(Function &F) {
   outs() << "Start Flattening Pass.\n";
 
+  outs() << "FunctionName: " << F.getName() << "\n";
+
   auto &Ctx = F.getContext();
 
   if (F.size() <= 1) {
+    outs() << "This function has only one basicblock.\n";
     return false;
   }
 
@@ -63,9 +67,14 @@ bool runFlattening(Function &F) {
 
   // int index = 0;
   for (auto &BB : F) {
-    OrigBB.push_back(&BB);
     // outs() << index++ << "\n";
     // OutputBasicBlock(&BB);
+    if (isa<InvokeInst>(BB.getTerminator())) {
+	  outs() << "This function has invoke instruction. Not support now!\n";
+	  return false;
+	}
+
+    OrigBB.emplace_back(&BB);
   }
 
   OrigBB.erase(OrigBB.begin());
@@ -79,21 +88,21 @@ bool runFlattening(Function &F) {
   }
 
   // Find all invoke instructions and delete unwind basicblock
-  std::vector<BasicBlock *> RemoveBB;
-  for (auto *BB : OrigBB) {
-    Value *Terminate = BB->getTerminator();
-    if (isa<InvokeInst>(*Terminate)) {
-      InvokeInst *Invoke = dyn_cast<InvokeInst>(Terminate);
-      RemoveBB.push_back(Invoke->getUnwindDest());
-    }
-  }
+  //std::vector<BasicBlock *> RemoveBB;
+  //for (auto *BB : OrigBB) {
+  //  Value *Terminate = BB->getTerminator();
+  //  if (isa<InvokeInst>(*Terminate)) {
+  //    InvokeInst *Invoke = dyn_cast<InvokeInst>(Terminate);
+  //    RemoveBB.push_back(Invoke->getUnwindDest());
+  //  }
+  //}
 
-  for (auto *BB : RemoveBB) {
-    if (auto Found = std::find(OrigBB.begin(), OrigBB.end(), BB);
-        Found != OrigBB.end()) {
-      OrigBB.erase(Found);
-    }
-  }
+  //for (auto *BB : RemoveBB) {
+  //  if (auto Found = std::find(OrigBB.begin(), OrigBB.end(), BB);
+  //      Found != OrigBB.end()) {
+  //    OrigBB.erase(Found);
+  //  }
+  //}
 
   // create dispatch basicblock and ret basicblock
   BasicBlock *DispatchBB = BasicBlock::Create(Ctx, "dispatchBB", &F, &EntryBB);
@@ -132,26 +141,45 @@ bool runFlattening(Function &F) {
       auto *NumCase =
           SwInst->findCaseDest(BB->getTerminator()->getSuccessor(0));
       BB->getTerminator()->eraseFromParent();
+
+      if (NumCase == nullptr) {
+          NumCase = ConstantInt::get(Type::getInt32Ty(Ctx), cryptoutils->get_uint32_t());
+      }
+
       new StoreInst(NumCase, SwVarPtr, BB);
       BranchInst::Create(ReturnBB, BB);
     } else if (BB->getTerminator()->getNumSuccessors() == 2) {
       // conditional jump
-      auto *TrueBB = BB->getTerminator()->getSuccessor(0);
-      auto *FalseBB = BB->getTerminator()->getSuccessor(1);
-      auto *NumCaseTrue = SwInst->findCaseDest(TrueBB);
-      auto *NumCaseFalse = SwInst->findCaseDest(FalseBB);
+      auto *NumCaseTrue = SwInst->findCaseDest(BB->getTerminator()->getSuccessor(0));
+      auto *NumCaseFalse = SwInst->findCaseDest(BB->getTerminator()->getSuccessor(1));
 
-      BranchInst *BrInst = cast<BranchInst>(BB->getTerminator());
-      SelectInst *Sel =
-          SelectInst::Create(BrInst->getCondition(), NumCaseTrue, NumCaseFalse,
-                             "", BB->getTerminator());
-      BB->getTerminator()->eraseFromParent();
-      new StoreInst(Sel, SwVarPtr, BB);
-      BranchInst::Create(ReturnBB, BB);
+      if (NumCaseTrue == nullptr) {
+          NumCaseTrue = ConstantInt::get(Type::getInt32Ty(Ctx), cryptoutils->get_uint32_t());
+      }
+
+      if (NumCaseFalse == nullptr) {
+          NumCaseFalse = ConstantInt::get(Type::getInt32Ty(Ctx), cryptoutils->get_uint32_t());
+      }
+
+      if (BranchInst* BrInst = dyn_cast<BranchInst>(BB->getTerminator())) {
+          SelectInst* Sel = SelectInst::Create(BrInst->getCondition(), NumCaseTrue, NumCaseFalse, "", BB->getTerminator());
+          BB->getTerminator()->eraseFromParent();
+
+          new StoreInst(Sel, SwVarPtr, BB);
+          BranchInst::Create(ReturnBB, BB);
+      }
     }
   }
 
   fixStack(F);
+
+  //outs() << "Now Function has been modified: \n";
+  //for (auto& BB : F) {
+  //    for (auto& Inst : BB) {
+  //        Inst.print(outs());
+  //        outs() << "\n";
+  //    }
+  //}
 
   outs() << "Finished Flattening Pass.\n";
   return false;
