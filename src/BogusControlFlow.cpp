@@ -35,19 +35,17 @@ static cl::opt<bool>
                             cl::desc("BronyaObfus - BogusControlFlow"));
 
 static cl::opt<int>
-    ObfuTimes("bcf-times", cl::init(1),
+    ObfuTimes("bcf-times", cl::init(3),
               cl::desc("Run BogusControlFlow pass <bcf-times> time(s)"));
 
 static cl::opt<int> ObfuProbRate(
-    "bcf-prob", cl::init(30),
+    "bcf-prob", cl::init(90),
     cl::desc("Choose the probability <bcf-prob> for each basic blocks will "
              "be obfuscated by BCF Pass"));
 
 namespace {
 
 #define OVERFLOW_MASK (0x3FF)
-
-std::vector<BasicBlock *> UsefulBB;
 
 static const uint32_t Primes[] = {
     127,  131,  137,  139,  149,  151,  157,  163,  167,  173,  179,  181,
@@ -78,45 +76,6 @@ bool checkContainInlineASM(BasicBlock &BB) {
     }
   }
   return false;
-}
-
-BasicBlock *createJunkBB(Function &F) {
-  auto &Ctx = F.getContext();
-  Module *M = F.getParent();
-  auto RNG = M->createRNG("BronyaObfus");
-  BasicBlock *Junk = BasicBlock::Create(Ctx, "junk", &F);
-
-  bool isX64 =
-      Triple(F.getParent()->getTargetTriple()).getArch() == Triple::x86_64;
-  // only support x64
-  if (isX64) {
-    auto *FuncType = FunctionType::get(Type::getVoidTy(Ctx), false);
-    IRBuilder<> Builder(Junk);
-
-    uint8_t jmp_op[] = {0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
-                        0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f};
-
-    for (int i = 0; i < 5; i++) {
-      std::string junk_asm = "";
-
-      if (i != 4) {
-        junk_asm +=
-            ".byte " + std::to_string(jmp_op[(*RNG)() % sizeof(jmp_op)]) + "\n";
-        junk_asm += ".byte " + std::to_string((*RNG)() % 0x100) + "\n";
-      } else {
-        junk_asm +=
-            ".byte 143\n.byte " + std::to_string((*RNG)() % 0x100) + "\n";
-      }
-      InlineAsm *IA = InlineAsm::get(FuncType, junk_asm, "", true, false);
-      Builder.CreateCall(IA);
-    }
-
-    Builder.CreateUnreachable();
-    Junk->moveAfter(&*F.begin());
-    return Junk;
-  }
-
-  return nullptr;
 }
 
 BasicBlock *createAlteredBasicBlock(BasicBlock *BB) {
@@ -262,12 +221,19 @@ Value *createComplexBogusCMP(BasicBlock *BB) {
 }
 
 void bogus(BasicBlock *Entry) {
+  outs() << "Start bogus.\n";
   // split basic blocks
-  BasicBlock *Body =
-      Entry->splitBasicBlock(Entry->getFirstNonPHIOrDbgOrLifetime(), "body");
+  BasicBlock* Body = nullptr;
+  if (Entry->getFirstNonPHIOrDbgOrLifetime()) {
+    Body = Entry->splitBasicBlock(Entry->getFirstNonPHIOrDbgOrLifetime());
+  }
+  else {
+    Body = Entry->splitBasicBlock(Entry->begin());
+  }
 
   BasicBlock *End = Body->splitBasicBlock(Body->getTerminator(), "end");
-
+  // Don't compile with /DEBUG, it will clone the same debug information to the
+  // altered basic block, which will cause dumping.
   BasicBlock *Altered = createAlteredBasicBlock(Body);
 
   // outs() << "Compeletly create altered basic block.\n";
@@ -280,32 +246,20 @@ void bogus(BasicBlock *Entry) {
   // outs() << "All splited basic block has erased terminator.\n";
 
   // insert invariant opaque predicates
-  Value *Cond1, *Cond2;
-  if (cryptoutils->get_range(100) >= 50) {
-    Cond1 = createSimpleBogusCMP(Entry);
-    Cond2 = createSimpleBogusCMP(Body);
-  } else {
-    Cond1 = createComplexBogusCMP(Entry);
-    Cond2 = createComplexBogusCMP(Body);
-  }
+  Value *Cond1 = createSimpleBogusCMP(Entry);
+  Value *Cond2 = createComplexBogusCMP(Body);
 
   BranchInst::Create(Body, Altered, Cond1, Entry);
   BranchInst::Create(End, Altered, Cond2, Body);
+  BranchInst::Create(Body, Altered);
 
-  auto *F = Entry->getParent();
-  auto *Junk = createJunkBB(*F);
-
-  if (cryptoutils->get_range(100) >= 50) {
-    BranchInst::Create(Body, Altered);
-  } else {
-    BranchInst::Create(Junk, Altered);
-  }
-
-  // outs() << "Bogus this basic block succeessfully.\n";
+  outs() << "BogusControlFlow applied.\n";
 }
 
 bool runBogusControlFlow(Function &F) {
   outs() << "Start BogusControlFlow Pass.\n";
+
+  outs() << "FunctionName: " << F.getName() << "\n";
 
   // check optional settings
   if (ObfuTimes <= 0) {
@@ -331,21 +285,14 @@ bool runBogusControlFlow(Function &F) {
     }
 
     // outs() << "Compeletly check if function has inline asm.\n";
-    UsefulBB.clear();
     for (auto *BB : OrigBB) {
       if (BB->getTerminator()->getNumSuccessors() >= 1) {
         if (static_cast<int32_t>(cryptoutils->get_range(100)) <= ObfuProbRate) {
-          UsefulBB.emplace_back(BB);
+            bogus(BB);
         }
       }
     }
-
-    for (auto *BB : UsefulBB) {
-      bogus(BB);
-    }
   }
-
-  outs() << "Compeletly bogus function: \033[42m" << F.getName() << "\033[0m\n";
 
   outs() << "Finished BogusControlFlow Pass.\n";
 
